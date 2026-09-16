@@ -3,6 +3,7 @@ package transfer
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"os"
 
@@ -35,6 +36,10 @@ func SendFile(conn net.Conn, path string) error {
 		return err
 	}
 
+	data = append(data, '\n')
+
+	fmt.Println("отправляем JSON:", string(data))
+
 	_, err = conn.Write(data)
 	if err != nil {
 		return err
@@ -42,6 +47,13 @@ func SendFile(conn net.Conn, path string) error {
 
 	fmt.Println("отправляем файл:", info.Name())
 	fmt.Println("размер:", info.Size(), "байт")
+
+	_, err = io.CopyN(conn, file, info.Size())
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("файл отправлен полностью")
 
 	return nil
 

@@ -40,6 +40,8 @@ func Connect(address string) {
 		return
 	}
 
+	data = append(data, '\n')
+
 	_, err = conn.Write(data)
 
 	if err != nil {
@@ -72,11 +74,31 @@ func Connect(address string) {
 	fmt.Println("тип:", response.Type)
 	fmt.Println("текст:", response.Text)
 
-	err = transfer.SendFile(conn, "text.txt")
+	err = transfer.SendFile(conn, "test.txt")
 
 	if err != nil {
 		fmt.Println("ошибка отправки файла:", err)
 		return
 	}
+
+	buffer = make([]byte, 1024)
+
+	n, err = conn.Read(buffer)
+	if err != nil {
+		fmt.Println("не удалось получить подтверждение:", err)
+		return
+	}
+
+	var ack protocol.Message
+
+	err = json.Unmarshal(buffer[:n], &ack)
+	if err != nil {
+		fmt.Println("не удалось разобрать АСК:", err)
+		return
+	}
+
+	fmt.Println("сервер подтвердил получение:")
+	fmt.Println("тип:", ack.Type)
+	fmt.Println("текст:", ack.Text)
 
 }

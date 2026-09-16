@@ -1,11 +1,13 @@
 package peer
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"net"
 
 	"github.com/akpaeto/godrop/internal/protocol"
+	"github.com/akpaeto/godrop/internal/transfer"
 )
 
 func StartServer(port string) {
@@ -33,21 +35,22 @@ func StartServer(port string) {
 
 		fmt.Println("New peer connected:", conn.RemoteAddr())
 
-		buffer := make([]byte, 1024)
+		reader := bufio.NewReader(conn)
 
-		n, err := conn.Read(buffer)
-
+		line, err := reader.ReadBytes('\n')
 		if err != nil {
-			fmt.Println("ошибка чтения")
+			fmt.Println("ошибка чтения hello:", err)
+			conn.Close()
 			continue
 		}
 
 		var message protocol.Message
 
-		err = json.Unmarshal(buffer[:n], &message)
+		err = json.Unmarshal(line, &message)
 
 		if err != nil {
 			fmt.Println("ошибка чтения json", err)
+			conn.Close()
 			continue
 		}
 
@@ -84,20 +87,77 @@ func StartServer(port string) {
 		}
 
 		data, err := json.Marshal(response)
-
 		if err != nil {
-			fmt.Println("ошибка создания json", err)
+			fmt.Println("ошибка создания json:", err)
 			conn.Close()
 			continue
 		}
 
-		_, err = conn.Write(data)
+		data = append(data, '\n')
 
+		_, err = conn.Write(data)
 		if err != nil {
-			fmt.Println("ошибка отправки", err)
+			fmt.Println("ошибка отправки:", err)
+			conn.Close()
+			continue
+
 		}
 
 		fmt.Println("отправлен ответ:", string(data))
+
+		fileLine, err := reader.ReadBytes('\n')
+		if err != nil {
+			fmt.Println("ошибка чтения file_info:", err)
+			conn.Close()
+			continue
+		}
+
+		var fileInfo protocol.Message
+
+		err = json.Unmarshal(fileLine, &fileInfo)
+		if err != nil {
+			fmt.Println("ошибка чтения file_info:", err)
+			conn.Close()
+			continue
+		}
+
+		fmt.Println()
+		fmt.Println("=== FILE INFO ===")
+		fmt.Println("имя:", fileInfo.FileName)
+		fmt.Println("размер:", fileInfo.FileSize, "байт")
+		fmt.Println("=================")
+
+		err = transfer.ReceiveFile(reader, fileInfo.FileName, fileInfo.FileSize)
+		if err != nil {
+			fmt.Println("ошибка получения файла:", err)
+			conn.Close()
+			continue
+		}
+
+		ack := protocol.Message{
+			Type: "file_received",
+			Text: "File received successfully",
+		}
+
+		ackData, err := json.Marshal(ack)
+		if err != nil {
+			fmt.Println("ошибка создания ACK:", err)
+			conn.Close()
+			continue
+		}
+
+		ackData = append(ackData, '\n')
+
+		_, err = conn.Write(ackData)
+
+		if err != nil {
+			fmt.Println("ошибка отправки АСK:", err)
+			conn.Close()
+			continue
+		}
+
+		fmt.Println("отправлено подтверждение:", string(ackData))
+
 		conn.Close()
 
 	}
