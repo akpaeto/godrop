@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+
 	"net"
 	"os"
 
@@ -48,12 +49,31 @@ func SendFile(conn net.Conn, path string) error {
 	fmt.Println("отправляем файл:", info.Name())
 	fmt.Println("размер:", info.Size(), "байт")
 
-	_, err = io.CopyN(conn, file, info.Size())
-	if err != nil {
-		return err
-	}
+	buffer := make([]byte, ChunkSize)
+	var sent int64
 
-	fmt.Println("файл отправлен полностью")
+	for {
+		n, err := file.Read(buffer)
+
+		if n > 0 {
+			_, writeErr := conn.Write(buffer[:n])
+			if writeErr != nil {
+				return writeErr
+			}
+
+			sent += int64(n)
+
+			fmt.Println("оптравлено:", sent, "/", info.Size(), "байт")
+		}
+
+		if err == io.EOF {
+			break
+		}
+
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 
