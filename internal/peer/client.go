@@ -1,6 +1,7 @@
 package peer
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -100,5 +101,80 @@ func Connect(address string) {
 	fmt.Println("сервер подтвердил получение:")
 	fmt.Println("тип:", ack.Type)
 	fmt.Println("текст:", ack.Text)
+
+}
+
+func SendFileToPeer(address string, filePath string) error {
+	conn, err := net.Dial("tcp", address)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	fmt.Println("подлкючились к peer:", conn.RemoteAddr())
+	hostname, err := os.Hostname()
+	if err != nil {
+		return err
+	}
+
+	message := protocol.Message{
+		Type:       "hello",
+		DeviceName: hostname,
+	}
+
+	data, err := json.Marshal(message)
+	if err != nil {
+		return err
+	}
+
+	data = append(data, '\n')
+
+	_, err = conn.Write(data)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("отправили:", string(data))
+
+	reader := bufio.NewReader(conn)
+
+	line, err := reader.ReadBytes('\n')
+	if err != nil {
+		return err
+	}
+
+	var response protocol.Message
+
+	err = json.Unmarshal(line, &response)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("ответ сервера:")
+	fmt.Println("тип:", response.Type)
+	fmt.Println("текст:", response.Text)
+
+	err = transfer.SendFile(conn, filePath)
+	if err != nil {
+		return err
+	}
+
+	line, err = reader.ReadBytes('\n')
+	if err != nil {
+		return err
+	}
+
+	var ack protocol.Message
+
+	err = json.Unmarshal(line, &ack)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("сервер подтвердил получение:")
+	fmt.Println("тип:", ack.Type)
+	fmt.Println("текст:", ack.Text)
+
+	return nil
 
 }

@@ -30,6 +30,10 @@ func (pm *PeerManager) Find(name string) *Peer {
 
 }
 
+func (pm *PeerManager) List() []*Peer {
+	return pm.Peers
+}
+
 func (pm *PeerManager) RemovePeer(name string) {
 	for i, peer := range pm.Peers {
 		if peer.Name == name {

@@ -8,6 +8,9 @@ import (
 	"github.com/akpaeto/godrop/internal/transfer"
 )
 
+//go run ./cmd/godrop server  команда для запуска сервера экей первого терминала
+//go run ./cmd/godrop connect localhost:8080 это для запуска клиента экей второго терминала
+
 func main() {
 	fmt.Println("================================")
 	fmt.Println("         GoDrop 🚀")
@@ -56,6 +59,22 @@ func main() {
 
 		if err != nil {
 			fmt.Println("error:", err)
+		}
+
+	case "send":
+		if len(os.Args) < 4 {
+			fmt.Println("использование:")
+			fmt.Println(" godrop send <address> <file>")
+			return
+		}
+
+		address := os.Args[2]
+		filePath := os.Args[3]
+
+		err := peer.SendFileToPeer(address, filePath)
+		if err != nil {
+			fmt.Println("ошибка отправки  файла:", err)
+			return
 		}
 
 	default:
